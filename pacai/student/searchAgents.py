@@ -8,11 +8,14 @@ Good luck and happy searching!
 import logging
 
 from pacai.core.actions import Actions
-from pacai.core.search import heuristic
 from pacai.core.search.position import PositionSearchProblem
 from pacai.core.search.problem import SearchProblem
 from pacai.agents.base import BaseAgent
 from pacai.agents.search.base import SearchAgent
+from pacai.core.directions import Directions
+from pacai.core import distance
+from pacai.student.search import breadthFirstSearch
+
 
 class CornersProblem(SearchProblem):
     """
@@ -57,14 +60,53 @@ class CornersProblem(SearchProblem):
         self.startingPosition = startingGameState.getPacmanPosition()
         top = self.walls.getHeight() - 2
         right = self.walls.getWidth() - 2
+        self.gameState = startingGameState
 
         self.corners = ((1, 1), (1, top), (right, 1), (right, top))
         for corner in self.corners:
+            self.cornersRemain = tuple([x for x in self.corners])
             if not startingGameState.hasFood(*corner):
                 logging.warning('Warning: no food in corner ' + str(corner))
+        self.startState = (self.startingPosition[0], self.startingPosition[1], self.cornersRemain)
 
-        # *** Your Code Here ***
-        raise NotImplementedError()
+    def startingState(self):
+        return self.startState
+
+    def isGoal(self, state):
+        # if (state[0], state[1]) not in state[2]:
+        #     return False
+        #
+        # state[2] = tuple([x for x in state[2] if x != (state[0], state[1])])
+        # print("corners remaining: " + str(state[2]))
+        if len(state[2]) == 0:
+            return True
+
+        return False
+
+    def successorStates(self, state):
+
+        successors = []
+
+        for action in Directions.CARDINAL:
+            x, y, remainingCorners = state
+            dx, dy = Actions.directionToVector(action)
+            nextx, nexty = int(x + dx), int(y + dy)
+            hitsWall = self.walls[nextx][nexty]
+
+            if (not hitsWall):
+                remainingCorners = tuple([x for x in state[2] if x != (nextx, nexty)])
+                nextState = (nextx, nexty, remainingCorners)
+                successors.append((nextState, action, 1))
+
+        self._numExpanded += 1
+        if (state not in self._visitedLocations):
+            self._visitedLocations.add((state[0], state[1]))
+            # Note: visit history requires coordinates not states. In this situation
+            # they are equivalent.
+            coordinates = (state[0], state[1])
+            self._visitHistory.append(coordinates)
+
+        return successors
 
     def actionsCost(self, actions):
         """
@@ -99,8 +141,28 @@ def cornersHeuristic(state, problem):
     # corners = problem.corners  # These are the corner coordinates
     # walls = problem.walls  # These are the walls of the maze, as a Grid.
 
-    # *** Your Code Here ***
-    return heuristic.null(state, problem)  # Default to trivial solution
+    # check remaining corners
+    if len(state[2]) == 0:
+        return 0
+    reminaingCorners = state[2]
+    cornersList = [x for x in reminaingCorners]
+    curLoc = (state[0], state[1])
+    cost = 0
+    while cornersList:
+        min = []
+        for corner in cornersList:
+            # cornerDistance = distance.maze(curLoc, corner, problem.gameState)
+            cornerDistance = distance.manhattan(curLoc, corner)
+            # cornerDistance = distance.euclidean(curLoc, corner)
+            if min == [] or cornerDistance < min[1]:
+                min = [corner, cornerDistance]
+        # print("curloc: " + str(curLoc) + "min: " + str(min) + "cornerslist: " + str(cornersList))
+        cost += min[1]
+        curLoc = min[0]
+        cornersList.remove(min[0])
+    # return heuristic.null(state, problem)  # Default to trivial solution
+    return cost
+
 
 def foodHeuristic(state, problem):
     """
@@ -132,9 +194,28 @@ def foodHeuristic(state, problem):
     """
 
     position, foodGrid = state
-
-    # *** Your Code Here ***
-    return heuristic.null(state, problem)  # Default to the null heuristic.
+    
+    foodList = [x for x in foodGrid.asList()]
+    curLoc = position
+    # while foodList:
+    #     max = []
+    #     for food in foodList:
+    #         foodDistance = distance.manhattan(curLoc, food)
+    #         foodDistance = distance.maze(curLoc, food, problem.startingGameState)
+    #         if max == [] or foodDistance < max[1]:
+    #             max = [food, foodDistance]
+    #     cost += max[1]
+    #     curLoc = max[0]
+    #     foodList.remove(max[0])
+    maxDist = 0 
+    for food in foodList:
+        # foodDistance = distance.euclidean(curLoc, food)
+        foodDistance = distance.maze(curLoc, food, problem.startingGameState)
+        # foodDistance = distance.manhattan(curLoc, food)
+        maxDist = max(maxDist, foodDistance)
+    return maxDist
+    # return cost
+    # return heuristic.null(state, problem)  # Default to the null heuristic.
 
 class ClosestDotSearchAgent(SearchAgent):
     """
@@ -168,7 +249,6 @@ class ClosestDotSearchAgent(SearchAgent):
         """
         Returns a path (a list of actions) to the closest dot, starting from gameState.
         """
-
         # Here are some useful elements of the startState
         # startPosition = gameState.getPacmanPosition()
         # food = gameState.getFood()
@@ -176,7 +256,7 @@ class ClosestDotSearchAgent(SearchAgent):
         # problem = AnyFoodSearchProblem(gameState)
 
         # *** Your Code Here ***
-        raise NotImplementedError()
+        return breadthFirstSearch(AnyFoodSearchProblem(gameState))
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """
@@ -204,6 +284,22 @@ class AnyFoodSearchProblem(PositionSearchProblem):
 
         # Store the food for later reference.
         self.food = gameState.getFood()
+    
+    def isGoal(self, state):
+        print(state)
+        print(self.food.asList())
+        if state not in self.food.asList():
+            return False
+        
+        # Register the locations we have visited.
+        # This allows the GUI to highlight them.
+        self._visitedLocations.add(state)
+        # Note: visit history requires coordinates not states. In this situation
+        # they are equivalent.
+        coordinates = state
+        self._visitHistory.append(coordinates)
+        return True
+
 
 class ApproximateSearchAgent(BaseAgent):
     """

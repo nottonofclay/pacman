@@ -11,50 +11,68 @@ NOT_POSSIBLE = None
 
 def question2():
     """
-    [Enter a description of what you did here.]
+    I decreased the noise to 0, this made it so that the
+    agent would always take the optimal action instead of
+    killing itself.
     """
 
     answerDiscount = 0.9
-    answerNoise = 0.2
+    answerNoise = 0
 
     return answerDiscount, answerNoise
 
+
 def question3a():
     """
-    [Enter a description of what you did here.]
+    I decreased the discount so that the agent
+    took the closer route to the goal and increased the
+    living reward so that the agent would be more willing
+    to take risks I also decreased the noise so that the
+    agent would try the quickest solution to the goal.
     """
 
-    answerDiscount = 0.9
-    answerNoise = 0.2
-    answerLivingReward = 0.0
+    answerDiscount = 0.4
+    answerNoise = 0.1
+    answerLivingReward = -3.5
 
     return answerDiscount, answerNoise, answerLivingReward
+
 
 def question3b():
     """
-    [Enter a description of what you did here.]
+    I again decreased the discount so that the agent
+    took the closer exit and kept the living reward and
+    noise the same as the defaults as those avoided the cliffs.
     """
 
-    answerDiscount = 0.9
-    answerNoise = 0.2
-    answerLivingReward = 0.0
+    answerDiscount = 0.1
+    answerNoise = 0.1
+    answerLivingReward = 0
 
     return answerDiscount, answerNoise, answerLivingReward
+
 
 def question3c():
     """
-    [Enter a description of what you did here.]
+    Kept most of the defaults, increased the discount
+    and decreased the noise so that the agent wouldn't
+    walk around aimlessly too much.
     """
 
     answerDiscount = 0.9
-    answerNoise = 0.2
-    answerLivingReward = 0.0
+    answerNoise = 0.1
+    answerLivingReward = -0.5
 
     return answerDiscount, answerNoise, answerLivingReward
+
 
 def question3d():
     """
-    [Enter a description of what you did here.]
+    Decreased discount so that the agent would take fewer
+    steps to the goal and increased the noise so that the
+    agent would take a more optimal route to the goal. Kept
+    the discount higher than trying to get to the closest
+    exit because it allowed for more moves.
     """
 
     answerDiscount = 0.9
@@ -62,27 +80,36 @@ def question3d():
     answerLivingReward = 0.0
 
     return answerDiscount, answerNoise, answerLivingReward
+
 
 def question3e():
     """
-    [Enter a description of what you did here.]
+    Significantly increased the living reward so that the
+    agent would avoid the cliffs. Increased the discount
+    by a lot so that the agent would be willing to make
+    a lot of moves and turned the noise to 0 so that it
+    wouldn't explore options once it reached the optimal
+    spot.
     """
 
-    answerDiscount = 0.9
-    answerNoise = 0.2
-    answerLivingReward = 0.0
+    answerDiscount = 0.99
+    answerNoise = 0.0
+    answerLivingReward = 99999
 
     return answerDiscount, answerNoise, answerLivingReward
 
+
 def question6():
     """
-    [Enter a description of what you did here.]
+    Increased the epsilon so that the agent would explore
+    further pathways
     """
 
-    answerEpsilon = 0.3
-    answerLearningRate = 0.5
+    # answerEpsilon = 0.5
+    # answerLearningRate = 10
 
-    return answerEpsilon, answerLearningRate
+    return NOT_POSSIBLE
+
 
 if __name__ == '__main__':
     questions = [

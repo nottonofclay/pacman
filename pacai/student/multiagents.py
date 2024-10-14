@@ -1,7 +1,10 @@
 import random
+import math
 
 from pacai.agents.base import BaseAgent
 from pacai.agents.search.multiagent import MultiAgentSearchAgent
+from pacai.core import distance
+
 
 class ReflexAgent(BaseAgent):
     """
@@ -47,18 +50,42 @@ class ReflexAgent(BaseAgent):
         Make sure to understand the range of different values before you combine them
         in your evaluation function.
         """
+        def add_tuples(tuple1, tuple2):
+            x1, y1 = tuple1
+            x2, y2 = tuple2
+            return (x1 + x2, y1 + y2)
 
+        # variables
         successorGameState = currentGameState.generatePacmanSuccessor(action)
+        newPosition = successorGameState.getPacmanPosition()
+        food = currentGameState.getFood().asList()
+        newGhostStates = successorGameState.getGhostStates()
+        curGhostPositions = [state.getPosition() for state in newGhostStates]
+        possibleDirections = [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]
 
-        # Useful information you can extract.
-        # newPosition = successorGameState.getPacmanPosition()
-        # oldFood = currentGameState.getFood()
-        # newGhostStates = successorGameState.getGhostStates()
-        # newScaredTimes = [ghostState.getScaredTimer() for ghostState in newGhostStates]
+        # creating possible ghost positions
+        possibleGhostPositions = []
+        for direction in possibleDirections:
+            for ghostPosition in curGhostPositions:
+                position = add_tuples(ghostPosition, direction)
+                possibleGhostPositions.append(position)
+        score = 0
 
-        # *** Your Code Here ***
+        # avoiding ghosts
+        for ghostPosition in possibleGhostPositions:
+            if ghostPosition == newPosition:
+                return 0
 
-        return successorGameState.getScore()
+        # finding closest food
+        maxFood = 99999
+        for food in food:
+            maxFood = min(maxFood, distance.manhattan(food, newPosition))
+        if maxFood == 0:
+            maxFood = 1
+        score = 1 / maxFood
+
+        return score
+
 
 class MinimaxAgent(MultiAgentSearchAgent):
     """
@@ -90,6 +117,70 @@ class MinimaxAgent(MultiAgentSearchAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
 
+    def getAction(self, gameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction.
+        """
+        legalMoves = gameState.getLegalActions()
+        # agent 0 is pacman
+        sucStates = [gameState.generateSuccessor(self.index, action) for action in legalMoves]
+        # agent 1 is first ghost, 0 is starting depth
+        scores = [self.min_value(state, 1, 0) for state in sucStates]
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        chosenIndex = random.choice(bestIndices)
+
+        return legalMoves[chosenIndex]
+
+    def min_value(self, gameState, ghostIndex, depth):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached and on last ghost
+        elif (depth >= self.getTreeDepth()) and (ghostIndex == gameState.getNumAgents() - 1):
+            return self.evaluationFunction()(gameState)
+
+        # generate ghost moves
+        v = math.inf
+        ghostSucStates = []
+        for action in gameState.getLegalActions(ghostIndex):
+            ghostSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        # constructing tree of moves
+        ghostScores = []
+        for state in ghostSucStates:
+            # recursing for each ghost
+            if not ghostIndex == gameState.getNumAgents() - 1:
+                ghostScores.append(self.min_value(state, ghostIndex + 1, depth))
+            # last ghost, go down in depth, move on to pacman
+            else:
+                ghostScores.append(self.max_value(state, 0, depth + 1))
+        v = min(ghostScores)
+        return v
+
+    def max_value(self, gameState, ghostIndex, depth):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached
+        elif (depth >= self.getTreeDepth()):
+            return self.getEvaluationFunction()(gameState)
+
+        # generate pacman moves
+        v = -math.inf
+        pacSucStates = []
+        for action in gameState.getLegalActions(self.index):
+            pacSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        pacScores = []
+        # generating ghost reponses to moves
+        for state in pacSucStates:
+            pacScores.append(self.min_value(state, 1, depth))
+
+        v = max(pacScores)
+        return v
+
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     A minimax agent with alpha-beta pruning.
@@ -104,6 +195,82 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
+
+    def getAction(self, gameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction.
+        """
+        legalMoves = gameState.getLegalActions()
+        # agent 0 is pacman
+        sucStates = [gameState.generateSuccessor(self.index, action) for action in legalMoves]
+        # agent 1 is first ghost, 0 is starting depth
+        alpha = -math.inf
+        beta = math.inf
+        scores = [self.min_value(state, 1, 0, alpha, beta) for state in sucStates]
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        chosenIndex = random.choice(bestIndices)
+
+        return legalMoves[chosenIndex]
+
+    def min_value(self, gameState, ghostIndex, depth, alpha, beta):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached and on last ghost
+        elif (depth >= self.getTreeDepth()) and (ghostIndex == gameState.getNumAgents() - 1):
+            return self.evaluationFunction()(gameState)
+
+        # generate ghost moves
+        v = math.inf
+        ghostSucStates = []
+        for action in gameState.getLegalActions(ghostIndex):
+            ghostSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        # constructing tree of moves
+        ghostScores = []
+        for state in ghostSucStates:
+            # recursing for each ghost
+            if not ghostIndex == gameState.getNumAgents() - 1:
+                ghostScores.append(self.min_value(state, ghostIndex + 1, depth, alpha, beta))
+            # last ghost, go down in depth, move on to pacman
+            else:
+                ghostScores.append(self.max_value(state, 0, depth + 1, alpha, beta))
+
+        # might not work fast enough
+        v = min(ghostScores)
+        if v <= alpha:
+            return v
+        beta = min(beta, v)
+
+        return v
+
+    def max_value(self, gameState, ghostIndex, depth, alpha, beta):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached
+        elif (depth >= self.getTreeDepth()):
+            return self.getEvaluationFunction()(gameState)
+
+        # generate pacman moves
+        v = -math.inf
+        pacSucStates = []
+        for action in gameState.getLegalActions(self.index):
+            pacSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        pacScores = []
+        # generating ghost reponses to moves
+        for state in pacSucStates:
+            pacScores.append(self.min_value(state, 1, depth, alpha, beta))
+
+        v = max(pacScores)
+        if v >= beta:
+            return v
+        alpha = max(alpha, v)
+
+        return v
+
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -122,6 +289,82 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     def __init__(self, index, **kwargs):
         super().__init__(index, **kwargs)
 
+    def getAction(self, gameState):
+        """
+        Returns the minimax action using self.depth and self.evaluationFunction.
+        """
+        legalMoves = gameState.getLegalActions()
+        # agent 0 is pacman
+        sucStates = [gameState.generateSuccessor(self.index, action) for action in legalMoves]
+        # agent 1 is first ghost, 0 is starting depth
+        alpha = -math.inf
+        beta = math.inf
+        scores = [self.min_value(state, 1, 0, alpha, beta) for state in sucStates]
+        bestScore = max(scores)
+        bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
+        chosenIndex = random.choice(bestIndices)
+
+        return legalMoves[chosenIndex]
+
+    def min_value(self, gameState, ghostIndex, depth, alpha, beta):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached and on last ghost
+        elif (depth >= self.getTreeDepth()) and (ghostIndex == gameState.getNumAgents() - 1):
+            return self.evaluationFunction()(gameState)
+
+        # generate ghost moves
+        v = math.inf
+        ghostSucStates = []
+        for action in gameState.getLegalActions(ghostIndex):
+            ghostSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        # constructing tree of moves
+        ghostScores = []
+        for state in ghostSucStates:
+            # recursing for each ghost
+            if not ghostIndex == gameState.getNumAgents() - 1:
+                ghostScores.append(self.min_value(state, ghostIndex + 1, depth, alpha, beta))
+            # last ghost, go down in depth, move on to pacman
+            else:
+                ghostScores.append(self.max_value(state, 0, depth + 1, alpha, beta))
+
+        # might not work fast enough
+        v = sum(ghostScores) / len(ghostScores)
+        if v <= alpha:
+            return v
+        beta = min(beta, v)
+
+        return v
+
+    def max_value(self, gameState, ghostIndex, depth, alpha, beta):
+        # if game over
+        if gameState.isOver():
+            return self.getEvaluationFunction()(gameState)
+        # if depth reached
+        elif (depth >= self.getTreeDepth()):
+            return self.getEvaluationFunction()(gameState)
+
+        # generate pacman moves
+        v = -math.inf
+        pacSucStates = []
+        for action in gameState.getLegalActions(self.index):
+            pacSucStates.append(gameState.generateSuccessor(ghostIndex, action))
+
+        pacScores = []
+        # generating ghost reponses to moves
+        for state in pacSucStates:
+            pacScores.append(self.min_value(state, 1, depth, alpha, beta))
+
+        v = max(pacScores)
+        if v >= beta:
+            return v
+        alpha = max(alpha, v)
+
+        return v
+
+
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable evaluation function.
@@ -130,6 +373,7 @@ def betterEvaluationFunction(currentGameState):
     """
 
     return currentGameState.getScore()
+
 
 class ContestAgent(MultiAgentSearchAgent):
     """

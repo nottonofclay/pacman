@@ -39,7 +39,19 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.values = {}  # A dictionary which holds the q-values for each state.
 
         # Compute the values here.
-        raise NotImplementedError()
+
+        for state in mdp.getStates():
+            # self.values[state] = self.getValue(state)
+            self.values[state] = 0
+        for i in range(self.iters):
+            next_values = {}
+            for state in mdp.getStates():
+                q_values = []
+                for action in self.mdp.getPossibleActions(state):
+                    q_values.append(self.getQValue(state, action))
+                init_val = self.values.get(state, 0)
+                next_values[state] = max(q_values, default=init_val)
+            self.values = next_values
 
     def getValue(self, state):
         """
@@ -54,3 +66,30 @@ class ValueIterationAgent(ValueEstimationAgent):
         """
 
         return self.getPolicy(state)
+
+    def getQValue(self, state, action):
+        """
+        Returns the q-value of the state action pair.
+        """
+        probilities = self.mdp.getTransitionStatesAndProbs(state, action)
+        q_value = 0
+        for probility in probilities:
+            state_prob, prob = probility
+            reward = self.mdp.getReward(state, action, state_prob)
+            value = self.values.get(state_prob, 0.0)
+            q_value += prob * (reward + (self.discountRate * value))
+        return q_value
+
+    def getPolicy(self, state):
+        """
+        Returns the policy at the state (no exploration).
+        """
+
+        if state == "TERMINAL_STATE":
+            return None
+        value = ("", -float('inf'))
+        for action in self.mdp.getPossibleActions(state):
+            temp = max(value[1], self.getQValue(state, action))
+            if temp > value[1]:
+                value = (action, temp)
+        return value[0]
